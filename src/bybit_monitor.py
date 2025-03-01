@@ -950,16 +950,30 @@ class BybitMonitor:
             print(f"Take Profit Targets: {', '.join(f'{tp}%' for tp in params['take_profits'])}")
             print(f"Stop Loss: {params['stop_loss']}%")
             
-            # Get order book data
+            # Get order book data and analyze
             order_book = self.get_order_book(symbol)
-            liquidity_score = self.analyze_liquidity(order_book)
-            print(f"\nLiquidity Score: {liquidity_score:.2f}")
+            orderbook_analysis = self.orderbook_analyzer.analyze_orderbook(order_book)
+            
+            # Print orderbook analysis
+            print("\n📊 Order Book Analysis:")
+            print(f"Dump Probability: {orderbook_analysis['dump_probability']:.1f}%")
+            print(f"Sell Wall Pressure: {orderbook_analysis['sell_wall_pressure']:.1f}")
+            print(f"Bid Support Strength: {orderbook_analysis['bid_support_strength']:.1f}")
+            print(f"Buy/Sell Pressure: {orderbook_analysis['buy_pressure']:.2f}")
+            print(f"Spread: {orderbook_analysis['spread']:.2f}%")
+            
+            # Risk indicators
+            if orderbook_analysis['dump_probability'] > 70:
+                print("\n⚠️ HIGH RISK OF DUMP!")
+                print("- Large sell walls detected" if orderbook_analysis['sell_wall_pressure'] > 60 else "")
+                print("- Weak buy support" if orderbook_analysis['bid_support_strength'] < 40 else "")
+                print("- High selling pressure" if orderbook_analysis['buy_pressure'] < -0.3 else "")
             
             # Additional analysis
             unusual_name_indicators = ['PEPE', 'MEME', 'DOGE', 'SHIB', 'BABY', 'ELON', 'MOON', 'SAFE', 'JAIL', 'TOOL', 'INU']
             is_meme_token = any(indicator in symbol.upper() for indicator in unusual_name_indicators)
             if is_meme_token:
-                print("⚠️ Meme/Unusual Token Name Detected")
+                print("\n⚠️ Meme/Unusual Token Name Detected")
             
         print("-" * 50)
 
@@ -1177,6 +1191,25 @@ class BybitMonitor:
                                 filled = "" * int(score/10)
                                 empty = "░" * (10 - int(score/10))
                                 print(f"{component:8} [{filled}{empty}] {int(score)}")
+                            
+                            # Добавляем анализ вероятности дампа
+                            if token_data.get('orderbook_data'):
+                                dump_data = token_data['orderbook_data']
+                                print("\n�� Анализ вероятности дампа:")
+                                print(f"Вероятность дампа: {dump_data.get('dump_probability', 0):.1f}%")
+                                print(f"Давление продаж: {dump_data.get('sell_wall_pressure', 0):.1f}")
+                                print(f"Сила поддержки: {dump_data.get('bid_support_strength', 0):.1f}")
+                                print(f"Соотношение buy/sell: {dump_data.get('buy_pressure', 0):.2f}")
+                                
+                                # Добавляем предупреждения о высоком риске
+                                if dump_data.get('dump_probability', 0) > 70:
+                                    print("\n⚠️ ВЫСОКИЙ РИСК ДАМПА!")
+                                    if dump_data.get('sell_wall_pressure', 0) > 60:
+                                        print("- Обнаружены большие стены на продажу")
+                                    if dump_data.get('bid_support_strength', 0) < 40:
+                                        print("- Слабая поддержка покупателей")
+                                    if dump_data.get('buy_pressure', 0) < -0.3:
+                                        print("- Высокое давление продаж")
                         
                         # Print strategy details
                         risk_level = "High" if strategy == TradingStrategy.AGGRESSIVE_PUMP else "Medium" if strategy == TradingStrategy.BALANCED_PUMP else "Low"
